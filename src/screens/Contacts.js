@@ -12,11 +12,13 @@ import {
   View,
   Text,
   ActivityIndicator,
-  FlatList
+  FlatList,
+  Linking
 } from "react-native";
 import Icon from "react-native-vector-icons/dist/MaterialIcons";
 
 import { fetchContacts } from "../utils/api";
+import getURLParams from "../utils/getURLParams";
 import { ROUTES } from "../common";
 import colors from "../utils/colors";
 import store from "../store";
@@ -63,10 +65,37 @@ export default class Contacts extends React.Component {
 
     const contacts = await fetchContacts();
     store.setState({ contacts, isFetchingContacts: false });
+
+    Linking.addEventListener("url", this.handleOpenUrl);
+
+    const url = await Linking.getInitialURL();
+    this.handleOpenUrl({ url });
   }
 
   componentWillUnmount() {
+    Linking.removeEventListener("url", this.handleOpenUrl);
     this.unsubscribe();
+  }
+
+  handleOpenUrl(event) {
+    const {
+      navigation: { navigate }
+    } = this.props;
+    const { url } = event;
+    const params = getURLParams(url);
+
+    if (params.name) {
+      const queriedContact = store
+        .getState()
+        .contacts.find(
+          contact =>
+            contact.name.split(" ")[0].toLowerCase() ===
+            params.name.toLowerCase()
+        );
+      if (queriedContact) {
+        navigate(ROUTES.Profile, { contact: queriedContact });
+      }
+    }
   }
 
   renderContact = ({ item }) => {
